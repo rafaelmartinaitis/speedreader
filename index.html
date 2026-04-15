@@ -1,11 +1,969 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hello World</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leitor Rápido — Texto e PDF</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.min.mjs" type="module"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #f97316;
+      --border: rgba(148, 163, 184, 0.22);
+      --shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .shell {
+      width: min(1120px, calc(100vw - 32px));
+      margin: 32px auto;
+      display: grid;
+      gap: 20px;
+    }
+
+    .hero,
+    .panel {
+      background: rgba(17, 24, 39, 0.88);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero {
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.1;
+    }
+
+    .hero p,
+    .muted {
+      color: var(--muted);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 20px;
+    }
+
+    .panel {
+      padding: 20px;
+    }
+
+    .tabs {
+      display: inline-flex;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px;
+      margin-bottom: 18px;
+    }
+
+    .tab-btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 16px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .tab-btn.active {
+      background: rgba(56, 189, 248, 0.16);
+      color: #e0f2fe;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    textarea {
+      width: 100%;
+      min-height: 340px;
+      resize: vertical;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(2, 6, 23, 0.65);
+      color: var(--text);
+      padding: 16px;
+      font: inherit;
+      line-height: 1.6;
+    }
+
+    .dropzone {
+      border: 2px dashed rgba(56, 189, 248, 0.4);
+      border-radius: 18px;
+      padding: 28px;
+      text-align: center;
+      background: rgba(2, 6, 23, 0.5);
+      transition: 0.2s ease;
+    }
+
+    .dropzone.drag {
+      border-color: rgba(56, 189, 248, 0.9);
+      background: rgba(14, 116, 144, 0.12);
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .btn,
+    .ghost-btn {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-weight: 700;
+      font: inherit;
+      transition: transform 0.12s ease, opacity 0.12s ease, background 0.2s ease;
+    }
+
+    .btn:hover,
+    .ghost-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      color: #082f49;
+    }
+
+    .ghost-btn {
+      background: rgba(148, 163, 184, 0.12);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .actions,
+    .control-grid,
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .control {
+      display: grid;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    input[type="range"],
+    select {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .stat {
+      padding: 14px;
+      border-radius: 14px;
+      background: rgba(2, 6, 23, 0.55);
+      border: 1px solid var(--border);
+    }
+
+    .stat .label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .stat .value {
+      font-weight: 800;
+      font-size: 20px;
+    }
+
+    .source-preview {
+      margin-top: 18px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(2, 6, 23, 0.52);
+      padding: 18px;
+      max-height: 260px;
+      overflow: auto;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+
+    .source-preview mark {
+      background: rgba(56, 189, 248, 0.22);
+      color: inherit;
+      padding: 0.1em 0.15em;
+      border-radius: 4px;
+    }
+
+    #readerOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    #readerOverlay.open {
+      display: flex;
+    }
+
+    #readerOverlay.theme-dark {
+      background: rgba(0, 0, 0, 0.78);
+      color: #fff;
+    }
+
+    #readerOverlay.theme-light {
+      background: rgba(255, 255, 255, 0.78);
+      color: #111;
+    }
+
+    .reader-box {
+      position: relative;
+      width: min(980px, 100%);
+      padding: 28px 26px;
+      border-radius: 24px;
+      text-align: center;
+      backdrop-filter: blur(6px);
+    }
+
+    #readerOverlay.theme-dark .reader-box {
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow: 0 16px 60px rgba(0, 0, 0, 0.4);
+    }
+
+    #readerOverlay.theme-light .reader-box {
+      background: rgba(0, 0, 0, 0.05);
+      box-shadow: 0 16px 60px rgba(0, 0, 0, 0.12);
+    }
+
+    .reader-guide {
+      position: absolute;
+      top: 16px;
+      bottom: 16px;
+      left: 50%;
+      width: 2px;
+      transform: translateX(-50%);
+      opacity: 0.14;
+      background: currentColor;
+    }
+
+    .reader-word {
+      min-height: 120px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 0.3em;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(34px, 6vw, 74px);
+      line-height: 1.15;
+    }
+
+    .reader-word .chunk {
+      white-space: nowrap;
+    }
+
+    .anchor {
+      color: var(--accent-2);
+      font-weight: 800;
+    }
+
+    .reader-meta,
+    .reader-help {
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+
+    .reader-meta {
+      margin-top: 14px;
+      font-size: 14px;
+      opacity: 0.92;
+    }
+
+    .reader-help {
+      margin-top: 10px;
+      font-size: 12px;
+      opacity: 0.75;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      background: rgba(2, 6, 23, 0.5);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .control-grid,
+      .stats {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
-    <h1>Hello World</h1>
+  <div class="shell">
+    <section class="hero">
+      <h1>Leitor rápido para texto e PDF</h1>
+      <p>Escolha entre colar um texto ou enviar um PDF com texto selecionável. O app extrai o conteúdo, organiza em blocos e abre o mesmo modal de leitura para os dois casos.</p>
+      <div class="row">
+        <span class="pill">Texto colado</span>
+        <span class="pill">PDF com texto extraível</span>
+        <span class="pill">1, 2 ou 3 palavras</span>
+        <span class="pill">Atalhos de teclado</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <section class="panel">
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="text">Texto</button>
+          <button class="tab-btn" data-tab="pdf">PDF</button>
+        </div>
+
+        <div class="tab-panel active" id="tab-text">
+          <label for="textInput">Cole aqui o texto</label>
+          <textarea id="textInput" placeholder="Cole aqui um artigo, capítulo, resumo ou qualquer texto que você queira ler em velocidade aumentada..."></textarea>
+        </div>
+
+        <div class="tab-panel" id="tab-pdf">
+          <div id="dropzone" class="dropzone">
+            <p><strong>Arraste um PDF para cá</strong> ou clique no botão abaixo.</p>
+            <p class="muted">Melhor resultado com PDFs digitais e texto selecionável.</p>
+            <div class="actions" style="justify-content:center; margin-top: 12px;">
+              <label class="btn" for="pdfInput">Escolher PDF</label>
+            </div>
+            <input id="pdfInput" type="file" accept="application/pdf" />
+          </div>
+          <div id="pdfStatus" class="muted" style="margin-top: 12px;"></div>
+        </div>
+
+        <div class="actions" style="margin-top: 18px;">
+          <button id="prepareBtn" class="btn">Preparar leitura</button>
+          <button id="startBtn" class="ghost-btn">Iniciar leitura</button>
+          <button id="clearBtn" class="ghost-btn">Limpar</button>
+        </div>
+
+        <div id="sourcePreview" class="source-preview" aria-live="polite"></div>
+      </section>
+
+      <aside class="panel">
+        <div class="control-grid">
+          <div class="control">
+            <label for="speedRange">Velocidade: <span id="speedValue">350</span> WPM</label>
+            <input id="speedRange" type="range" min="100" max="1200" step="25" value="350" />
+          </div>
+
+          <div class="control">
+            <label for="chunkSelect">Palavras por passo</label>
+            <select id="chunkSelect">
+              <option value="1">1 palavra</option>
+              <option value="2">2 palavras</option>
+              <option value="3">3 palavras</option>
+            </select>
+          </div>
+
+          <div class="control">
+            <label for="themeSelect">Tema do modal</label>
+            <select id="themeSelect">
+              <option value="dark">Escuro</option>
+              <option value="light">Claro</option>
+            </select>
+          </div>
+
+          <div class="control">
+            <label for="blockSizeSelect">Tamanho do bloco</label>
+            <select id="blockSizeSelect">
+              <option value="500">Curto</option>
+              <option value="900" selected>Médio</option>
+              <option value="1400">Longo</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="label">Status</div>
+            <div id="statusValue" class="value">Aguardando</div>
+          </div>
+          <div class="stat">
+            <div class="label">Palavras</div>
+            <div id="wordsValue" class="value">0</div>
+          </div>
+          <div class="stat">
+            <div class="label">Blocos</div>
+            <div id="blocksValue" class="value">0</div>
+          </div>
+          <div class="stat">
+            <div class="label">Origem</div>
+            <div id="sourceValue" class="value">—</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 18px;">
+          <div class="muted" style="margin-bottom: 10px; font-weight: 700;">Atalhos durante a leitura</div>
+          <div class="muted">+ ou = aumenta velocidade</div>
+          <div class="muted">- reduz velocidade</div>
+          <div class="muted">1 2 3 define quantas palavras aparecem</div>
+          <div class="muted">Espaço pausa ou continua</div>
+          <div class="muted">← e → voltam ou avançam</div>
+          <div class="muted">↑ e ↓ mudam de bloco</div>
+          <div class="muted">T alterna tema</div>
+          <div class="muted">Esc fecha o modal</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="readerOverlay" class="theme-dark" aria-hidden="true">
+    <div class="reader-box">
+      <div class="reader-guide"></div>
+      <div id="readerWord" class="reader-word"></div>
+      <div id="readerMeta" class="reader-meta"></div>
+      <div id="readerHelp" class="reader-help"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.min.mjs';
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.mjs';
+
+    const state = {
+      activeTab: 'text',
+      rawText: '',
+      sourceType: '—',
+      blocks: [],
+      totalWords: 0,
+      blockIndex: 0,
+      wordIndex: 0,
+      chunkSize: 1,
+      wpm: 350,
+      theme: 'dark',
+      blockSize: 900,
+      playing: false,
+      timer: null,
+      pdfFileName: '',
+      lastPreparedPreview: ''
+    };
+
+    const el = {
+      tabButtons: [...document.querySelectorAll('.tab-btn')],
+      tabText: document.getElementById('tab-text'),
+      tabPdf: document.getElementById('tab-pdf'),
+      textInput: document.getElementById('textInput'),
+      pdfInput: document.getElementById('pdfInput'),
+      dropzone: document.getElementById('dropzone'),
+      pdfStatus: document.getElementById('pdfStatus'),
+      prepareBtn: document.getElementById('prepareBtn'),
+      startBtn: document.getElementById('startBtn'),
+      clearBtn: document.getElementById('clearBtn'),
+      sourcePreview: document.getElementById('sourcePreview'),
+      speedRange: document.getElementById('speedRange'),
+      speedValue: document.getElementById('speedValue'),
+      chunkSelect: document.getElementById('chunkSelect'),
+      themeSelect: document.getElementById('themeSelect'),
+      blockSizeSelect: document.getElementById('blockSizeSelect'),
+      statusValue: document.getElementById('statusValue'),
+      wordsValue: document.getElementById('wordsValue'),
+      blocksValue: document.getElementById('blocksValue'),
+      sourceValue: document.getElementById('sourceValue'),
+      readerOverlay: document.getElementById('readerOverlay'),
+      readerWord: document.getElementById('readerWord'),
+      readerMeta: document.getElementById('readerMeta'),
+      readerHelp: document.getElementById('readerHelp')
+    };
+
+    function normalizeText(text) {
+      return (text || '')
+        .replace(/\u00A0/g, ' ')
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/\s+([,.;:!?])/g, '$1')
+        .trim();
+    }
+
+    function splitIntoBlocks(text, maxChars) {
+      const paragraphs = text
+        .split(/\n\s*\n/)
+        .map(p => normalizeText(p))
+        .filter(Boolean);
+
+      const blocks = [];
+      let current = '';
+
+      for (const p of paragraphs) {
+        if (!current) {
+          current = p;
+        } else if ((current + '\n\n' + p).length <= maxChars) {
+          current += '\n\n' + p;
+        } else {
+          blocks.push(current);
+          current = p;
+        }
+      }
+
+      if (current) blocks.push(current);
+
+      if (!blocks.length && text) {
+        return [text];
+      }
+
+      return blocks;
+    }
+
+    function prepareFromText(text, sourceType) {
+      const normalized = normalizeText(text);
+      if (!normalized) {
+        updateStatus('Sem conteúdo');
+        state.rawText = '';
+        state.blocks = [];
+        state.totalWords = 0;
+        renderStats();
+        el.sourcePreview.textContent = '';
+        return false;
+      }
+
+      state.rawText = normalized;
+      state.sourceType = sourceType;
+      state.blocks = splitIntoBlocks(normalized, state.blockSize).map(block => ({
+        text: block,
+        words: block.split(/\s+/).filter(Boolean)
+      }));
+      state.totalWords = state.blocks.reduce((sum, block) => sum + block.words.length, 0);
+      state.blockIndex = 0;
+      state.wordIndex = 0;
+      state.lastPreparedPreview = state.blocks[0]?.text || '';
+
+      renderPreview();
+      renderStats();
+      updateStatus('Pronto');
+      return true;
+    }
+
+    async function extractTextFromPdf(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pages = [];
+
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map(item => item.str)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (pageText) pages.push(pageText);
+      }
+
+      return pages.join('\n\n');
+    }
+
+    function renderPreview() {
+      if (!state.blocks.length) {
+        el.sourcePreview.textContent = '';
+        return;
+      }
+      const first = state.blocks[0].text;
+      const preview = first.length > 1200 ? first.slice(0, 1200) + '…' : first;
+      el.sourcePreview.textContent = preview;
+    }
+
+    function renderStats() {
+      el.wordsValue.textContent = String(state.totalWords || 0);
+      el.blocksValue.textContent = String(state.blocks.length || 0);
+      el.sourceValue.textContent = state.sourceType || '—';
+      el.speedValue.textContent = String(state.wpm);
+    }
+
+    function updateStatus(status) {
+      el.statusValue.textContent = status;
+    }
+
+    function getCurrentBlock() {
+      return state.blocks[state.blockIndex] || null;
+    }
+
+    function getAnchorIndex(word) {
+      const len = (word || '').length;
+      if (len <= 1) return 0;
+      if (len <= 5) return 1;
+      if (len <= 9) return 2;
+      if (len <= 13) return 3;
+      return 4;
+    }
+
+    function escapeHtml(str) {
+      return (str || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function renderAnchoredWord(word) {
+      const idx = Math.min(getAnchorIndex(word), Math.max(word.length - 1, 0));
+      const left = word.slice(0, idx);
+      const anchor = word[idx] || '';
+      const right = word.slice(idx + 1);
+      return `<span class="chunk"><span>${escapeHtml(left)}</span><span class="anchor">${escapeHtml(anchor)}</span><span>${escapeHtml(right)}</span></span>`;
+    }
+
+    function getCurrentChunkWords() {
+      const block = getCurrentBlock();
+      if (!block) return [];
+      return block.words.slice(state.wordIndex, state.wordIndex + state.chunkSize);
+    }
+
+    function getGlobalWordPosition() {
+      let before = 0;
+      for (let i = 0; i < state.blockIndex; i++) before += state.blocks[i].words.length;
+      return before + state.wordIndex + 1;
+    }
+
+    function renderReader() {
+      const block = getCurrentBlock();
+      if (!block) {
+        el.readerWord.textContent = 'Sem conteúdo';
+        el.readerMeta.textContent = '';
+        return;
+      }
+
+      const chunkWords = getCurrentChunkWords();
+      el.readerWord.innerHTML = chunkWords.map(renderAnchoredWord).join(' ');
+      const position = Math.min(getGlobalWordPosition(), state.totalWords || 1);
+      el.readerMeta.textContent = `${state.playing ? '▶' : '⏸'} ${state.wpm} WPM · ${state.chunkSize} palavra(s) · bloco ${state.blockIndex + 1}/${state.blocks.length} · palavra ${position}/${state.totalWords}`;
+      el.readerHelp.textContent = '+/=- velocidade · 1/2/3 grupo · espaço pausa · ←/→ passo · ↑/↓ bloco · T tema · Esc sair';
+      renderHighlightedPreview();
+    }
+
+    function renderHighlightedPreview() {
+      const block = getCurrentBlock();
+      if (!block) {
+        el.sourcePreview.textContent = '';
+        return;
+      }
+      const words = block.words;
+      const start = state.wordIndex;
+      const end = Math.min(start + state.chunkSize, words.length);
+
+      const before = escapeHtml(words.slice(0, start).join(' '));
+      const current = escapeHtml(words.slice(start, end).join(' '));
+      const after = escapeHtml(words.slice(end).join(' '));
+      el.sourcePreview.innerHTML = `${before ? before + ' ' : ''}<mark>${current}</mark>${after ? ' ' + after : ''}`;
+    }
+
+    function openReader() {
+      if (!state.blocks.length) return;
+      state.playing = true;
+      el.readerOverlay.classList.add('open');
+      el.readerOverlay.setAttribute('aria-hidden', 'false');
+      applyTheme();
+      renderReader();
+      startTimer();
+    }
+
+    function closeReader() {
+      state.playing = false;
+      stopTimer();
+      el.readerOverlay.classList.remove('open');
+      el.readerOverlay.setAttribute('aria-hidden', 'true');
+      renderPreview();
+    }
+
+    function applyTheme() {
+      el.readerOverlay.classList.remove('theme-dark', 'theme-light');
+      el.readerOverlay.classList.add(`theme-${state.theme}`);
+    }
+
+    function getIntervalMs() {
+      const chunksPerMinute = state.wpm / state.chunkSize;
+      return Math.max(50, Math.round(60000 / chunksPerMinute));
+    }
+
+    function startTimer() {
+      stopTimer();
+      if (!state.playing) return;
+      state.timer = setInterval(stepForward, getIntervalMs());
+    }
+
+    function stopTimer() {
+      if (state.timer) {
+        clearInterval(state.timer);
+        state.timer = null;
+      }
+    }
+
+    function stepForward() {
+      const block = getCurrentBlock();
+      if (!block) return;
+
+      const nextIndex = state.wordIndex + state.chunkSize;
+      if (nextIndex < block.words.length) {
+        state.wordIndex = nextIndex;
+      } else if (state.blockIndex < state.blocks.length - 1) {
+        state.blockIndex += 1;
+        state.wordIndex = 0;
+      } else {
+        state.playing = false;
+        stopTimer();
+      }
+      renderReader();
+    }
+
+    function stepBackward() {
+      if (state.wordIndex - state.chunkSize >= 0) {
+        state.wordIndex = Math.max(0, state.wordIndex - state.chunkSize);
+      } else if (state.blockIndex > 0) {
+        state.blockIndex -= 1;
+        const prevBlock = getCurrentBlock();
+        state.wordIndex = Math.max(0, prevBlock.words.length - state.chunkSize);
+      }
+      renderReader();
+    }
+
+    function nextBlock() {
+      if (state.blockIndex < state.blocks.length - 1) {
+        state.blockIndex += 1;
+        state.wordIndex = 0;
+        renderReader();
+      }
+    }
+
+    function prevBlock() {
+      if (state.blockIndex > 0) {
+        state.blockIndex -= 1;
+        state.wordIndex = 0;
+        renderReader();
+      }
+    }
+
+    function togglePlay() {
+      state.playing = !state.playing;
+      if (state.playing) startTimer();
+      else stopTimer();
+      renderReader();
+    }
+
+    function changeWpm(delta) {
+      state.wpm = Math.max(100, Math.min(1200, state.wpm + delta));
+      el.speedRange.value = String(state.wpm);
+      renderStats();
+      if (state.playing) startTimer();
+      renderReader();
+    }
+
+    function setChunkSize(size) {
+      state.chunkSize = size;
+      el.chunkSelect.value = String(size);
+      if (state.playing) startTimer();
+      renderReader();
+    }
+
+    function clearAll() {
+      closeReader();
+      state.rawText = '';
+      state.blocks = [];
+      state.totalWords = 0;
+      state.blockIndex = 0;
+      state.wordIndex = 0;
+      state.sourceType = '—';
+      state.pdfFileName = '';
+      el.textInput.value = '';
+      el.pdfInput.value = '';
+      el.pdfStatus.textContent = '';
+      el.sourcePreview.textContent = '';
+      updateStatus('Aguardando');
+      renderStats();
+    }
+
+    async function prepareCurrentSource() {
+      try {
+        updateStatus('Processando');
+        if (state.activeTab === 'text') {
+          const ok = prepareFromText(el.textInput.value, 'Texto');
+          if (!ok) return;
+        } else {
+          const file = el.pdfInput.files?.[0];
+          if (!file) {
+            updateStatus('Selecione um PDF');
+            return;
+          }
+          el.pdfStatus.textContent = `Lendo ${file.name}...`;
+          const extracted = await extractTextFromPdf(file);
+          if (!extracted) {
+            updateStatus('PDF sem texto extraível');
+            el.pdfStatus.textContent = 'Não foi possível extrair texto selecionável deste PDF.';
+            return;
+          }
+          prepareFromText(extracted, `PDF`);
+          state.pdfFileName = file.name;
+          el.pdfStatus.textContent = `${file.name} processado com sucesso.`;
+        }
+      } catch (error) {
+        console.error(error);
+        updateStatus('Erro');
+        el.pdfStatus.textContent = 'Não foi possível processar o PDF.';
+      }
+    }
+
+    function switchTab(tab) {
+      state.activeTab = tab;
+      el.tabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+      el.tabText.classList.toggle('active', tab === 'text');
+      el.tabPdf.classList.toggle('active', tab === 'pdf');
+    }
+
+    function onDropzoneDrag(event) {
+      event.preventDefault();
+      el.dropzone.classList.add('drag');
+    }
+
+    function onDropzoneLeave(event) {
+      event.preventDefault();
+      el.dropzone.classList.remove('drag');
+    }
+
+    function onDropzoneDrop(event) {
+      event.preventDefault();
+      el.dropzone.classList.remove('drag');
+      const file = event.dataTransfer.files?.[0];
+      if (file && file.type === 'application/pdf') {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        el.pdfInput.files = dataTransfer.files;
+        el.pdfStatus.textContent = `${file.name} selecionado.`;
+      }
+    }
+
+    el.tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    el.speedRange.addEventListener('input', () => {
+      state.wpm = Number(el.speedRange.value);
+      renderStats();
+      if (state.playing) startTimer();
+      renderReader();
+    });
+
+    el.chunkSelect.addEventListener('change', () => {
+      state.chunkSize = Number(el.chunkSelect.value);
+      renderReader();
+    });
+
+    el.themeSelect.addEventListener('change', () => {
+      state.theme = el.themeSelect.value;
+      applyTheme();
+      renderReader();
+    });
+
+    el.blockSizeSelect.addEventListener('change', () => {
+      state.blockSize = Number(el.blockSizeSelect.value);
+    });
+
+    el.pdfInput.addEventListener('change', () => {
+      const file = el.pdfInput.files?.[0];
+      el.pdfStatus.textContent = file ? `${file.name} selecionado.` : '';
+    });
+
+    el.dropzone.addEventListener('dragenter', onDropzoneDrag);
+    el.dropzone.addEventListener('dragover', onDropzoneDrag);
+    el.dropzone.addEventListener('dragleave', onDropzoneLeave);
+    el.dropzone.addEventListener('drop', onDropzoneDrop);
+
+    el.prepareBtn.addEventListener('click', prepareCurrentSource);
+
+    el.startBtn.addEventListener('click', async () => {
+      if (!state.blocks.length) {
+        await prepareCurrentSource();
+      }
+      if (state.blocks.length) openReader();
+    });
+
+    el.clearBtn.addEventListener('click', clearAll);
+
+    window.addEventListener('keydown', (event) => {
+      if (!el.readerOverlay.classList.contains('open')) return;
+
+      const key = event.key;
+      const allowed = [' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '+', '=', '-', '1', '2', '3', 't', 'T', 'Escape'];
+      if (!allowed.includes(key)) return;
+
+      event.preventDefault();
+
+      if (key === ' ' || key === 'Spacebar') return togglePlay();
+      if (key === 'ArrowLeft') return stepBackward();
+      if (key === 'ArrowRight') return stepForward();
+      if (key === 'ArrowUp') return prevBlock();
+      if (key === 'ArrowDown') return nextBlock();
+      if (key === '+' || key === '=') return changeWpm(25);
+      if (key === '-') return changeWpm(-25);
+      if (key === '1') return setChunkSize(1);
+      if (key === '2') return setChunkSize(2);
+      if (key === '3') return setChunkSize(3);
+      if (key === 't' || key === 'T') {
+        state.theme = state.theme === 'dark' ? 'light' : 'dark';
+        el.themeSelect.value = state.theme;
+        applyTheme();
+        return renderReader();
+      }
+      if (key === 'Escape') return closeReader();
+    });
+
+    renderStats();
+    renderPreview();
+  </script>
 </body>
 </html>
